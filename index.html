@@ -96,16 +96,17 @@ const col = n => root.collection(n);
 function start(){
   try { firebase.initializeApp(window.FIREBASE_CONFIG); fs = firebase.firestore(); }
   catch(e){ $app.innerHTML = `<section class="panel"><h1>還沒設定 Firebase</h1><p class="muted">請依「設定說明」步驟 3，把 Firebase 設定貼到 config.js。</p></section>`; return; }
-  const pw = ls.get("pw");
-  pw ? connect(pw) : gate();
+  ls.del("pw");  // 舊版會記住密碼，清掉
+  gate();
 }
 
 function gate(msg){
   document.getElementById("nav").hidden = true;
   $app.innerHTML = `<section class="panel" style="max-width:420px;margin:40px auto 0;width:100%"><h1>電堆紀錄填寫</h1>
-  <form id="pwf"><label>部門密碼<input id="pwi" autocomplete="current-password" required></label>
+  <form id="pwf"><label>部門密碼<input id="pwi" autocomplete="off" autocapitalize="none" required></label>
+  <p class="muted" style="margin:0">提示：小寫公司名＋統編</p>
   ${msg?`<p class="ng" style="margin:0">${esc(msg)}</p>`:""}<button>進入</button></form>
-  <p class="muted">輸入一次後這支手機會記住。</p></section>`;
+  </section>`;
   document.getElementById("pwf").onsubmit = e => { e.preventDefault(); connect(document.getElementById("pwi").value.trim()); };
 }
 
@@ -118,11 +119,11 @@ function connect(pw){
     unsubs.push(col(name).onSnapshot(snap => {
       S[name] = snap.docs.map(d => ({id:d.id, ...d.data()}));
       loaded[name] = true;
-      if (first && Object.values(loaded).every(Boolean)){ first=false; ls.set("pw", pw); document.getElementById("nav").hidden=false; }
+      if (first && Object.values(loaded).every(Boolean)){ first=false; document.getElementById("nav").hidden=false; }
       if (!first) render();
     }, err => {
       unsubs.forEach(u=>u()); unsubs=[];
-      if (err.code === "permission-denied"){ ls.del("pw"); gate("密碼錯誤"); }
+      if (err.code === "permission-denied"){ gate("密碼錯誤"); }
       else $app.innerHTML = `<section class="panel"><h1>連不上資料庫</h1><p class="muted">${esc(err.message)}</p></section>`;
     }));
   }
@@ -334,10 +335,10 @@ function renderChanges(){
 function renderQR(){
   const url = location.origin + location.pathname;
   $app.innerHTML = `<section class="panel noprint"><h1>QR Code</h1><p class="muted">印出來貼在機台旁，手機掃了就進到填寫頁（Ctrl+P 列印）。</p>
-<p class="muted">要換手機或登出：<button class="sub" id="logout" style="padding:4px 10px">清除這台裝置記住的密碼</button></p></section>
+<p class="muted"><button class="sub" id="logout" style="padding:4px 10px">登出</button></p></section>
 <div class="qrbox"><div class="t">電堆紀錄填寫</div><div id="qr"></div><div class="u">${esc(url)}</div></div>`;
   new QRCode(document.getElementById("qr"), {text:url, width:260, height:260, correctLevel:QRCode.CorrectLevel.M});
-  document.getElementById("logout").onclick=()=>{ ls.del("pw"); unsubs.forEach(u=>u()); unsubs=[]; gate(); };
+  document.getElementById("logout").onclick=()=>{ unsubs.forEach(u=>u()); unsubs=[]; gate(); };
 }
 
 // ---------- 匯出 Excel ----------
