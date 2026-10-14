@@ -185,10 +185,14 @@ function renderFill(){
 <label>異常描述<textarea id="descr" name="descr" placeholder="例：電壓過高，無法拉載"></textarea></label>
 <label>此位置狀態改為<select id="flag" name="flag"><option value="keep">不變</option>${Object.entries(FLAG).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label></div>
 <div data-k="replace" style="display:grid;gap:10px">
+<label>原電堆 S/N（自動帶入，可修改）<input id="old_sn" name="old_sn" class="sn" placeholder="先選位置"></label>
 <label>新電堆 S/N<input id="new_sn" name="new_sn" class="sn" placeholder="例：SM250527P015"></label>
 <label>原因<input id="reason_r" name="reason_r" value="更換新電堆"></label></div>
 <div data-k="swap" style="display:grid;gap:10px">
 <label>交換到的位置<select id="other" name="other"><option value="">選擇位置</option>${slotsSorted().map(s=>`<option>${s.pos}</option>`).join("")}</select></label>
+<div style="display:grid;gap:10px"><label><span id="sw_a_l">此位置的電堆 S/N</span><input id="sw_a" name="sw_a" class="sn" placeholder="先選位置"></label>
+<label><span id="sw_b_l">交換位置的電堆 S/N</span><input id="sw_b" name="sw_b" class="sn" placeholder="先選交換位置"></label></div>
+<p class="muted" style="margin:0" id="sw_hint">兩邊的 S/N 會從配置總表自動帶入，送出後互換。若跟現場不符請直接修改。</p>
 <label>原因<input id="reason_s" name="reason_s" value="電壓過高"></label></div>
 <button id="go">送出</button></form></section>
 <p class="muted">送出後會自動更新配置總表與紀錄表。</p>`;
@@ -199,6 +203,17 @@ function renderFill(){
     document.getElementById("posWrap").hidden = kv()==="usage";
     document.getElementById("u_descr_w").hidden = f.querySelector("input[name=abn]:checked").value!=="有"; };
   f.querySelectorAll("input[name=kind],input[name=abn]").forEach(r=>r.onchange=sw);
+  const fillSn = () => {
+    const p=f.pos.value, o=f.other.value, A=slot(p), B=slot(o);
+    f.old_sn.value = A ? A.sn : ""; f.sw_a.value = A ? A.sn : ""; f.sw_b.value = B ? B.sn : "";
+    document.getElementById("sw_a_l").textContent = p ? `${p} 的電堆 S/N` : "此位置的電堆 S/N";
+    document.getElementById("sw_b_l").textContent = o ? `${o} 的電堆 S/N` : "交換位置的電堆 S/N";
+    document.getElementById("sw_hint").textContent = (p&&o) ? `送出後：${p} 改裝 ${f.sw_b.value||"?"}，${o} 改裝 ${f.sw_a.value||"?"}。若跟現場不符請直接修改。` : "兩邊的 S/N 會從配置總表自動帶入，送出後互換。若跟現場不符請直接修改。";
+  };
+  f.pos.addEventListener("change", fillSn); f.other.addEventListener("change", fillSn);
+  const hint = () => { const p=f.pos.value,o=f.other.value; if(p&&o) document.getElementById("sw_hint").textContent=`送出後：${p} 改裝 ${f.sw_b.value||"?"}，${o} 改裝 ${f.sw_a.value||"?"}。若跟現場不符請直接修改。`; };
+  f.sw_a.addEventListener("input", hint); f.sw_b.addEventListener("input", hint);
+  if (!draft) fillSn(); else { const p=f.pos.value,o=f.other.value; document.getElementById("sw_a_l").textContent=p?`${p} 的電堆 S/N`:"此位置的電堆 S/N"; document.getElementById("sw_b_l").textContent=o?`${o} 的電堆 S/N`:"交換位置的電堆 S/N"; }
   if (draft && draft.abn) f.querySelector(`input[name=abn][value=${draft.abn}]`).checked=true;
   sw();
   f.oninput = f.onchange = () => { draft = Object.fromEntries(new FormData(f)); };
@@ -236,17 +251,18 @@ async function submit(d){
     await b.commit(); return `已記錄 ${d.pos} 異常`;
   }
   if (d.kind === "replace"){
-    const nsn = d.new_sn.trim().toUpperCase(), r = d.reason_r.trim();
-    b.set(col("changes").doc(), {date:d.date, pos:d.pos, result:"NG", reason:r, sn:a.sn, new_sn:"", swap:"", tag:"removed", ...meta});
-    b.set(col("changes").doc(), {date:d.date, pos:d.pos, result:"Pass", reason:r, sn:a.sn, new_sn:nsn, swap:"", tag:"", ...meta});
+    const nsn = d.new_sn.trim().toUpperCase(), r = d.reason_r.trim(), osn = (d.old_sn||"").trim() || a.sn;
+    b.set(col("changes").doc(), {date:d.date, pos:d.pos, result:"NG", reason:r, sn:osn, new_sn:"", swap:"", tag:"removed", ...meta});
+    b.set(col("changes").doc(), {date:d.date, pos:d.pos, result:"Pass", reason:r, sn:osn, new_sn:nsn, swap:"", tag:"", ...meta});
     b.update(col("slots").doc(d.pos), {sn:nsn, flag:""});
-    await b.commit(); return `已更換 ${d.pos}：${a.sn} → ${nsn}`;
+    await b.commit(); return `已更換 ${d.pos}：${osn} → ${nsn}`;
   }
   const o = slot(d.other), r = d.reason_s.trim();
-  b.set(col("changes").doc(), {date:d.date, pos:a.pos, result:"Pass", reason:`${r}，跟${o.pos}交換`, sn:a.sn, new_sn:o.sn, swap:o.pos, tag:"swapped", ...meta});
-  b.set(col("changes").doc(), {date:d.date, pos:o.pos, result:"NG", reason:`${r}，跟${a.pos}交換`, sn:o.sn, new_sn:a.sn, swap:a.pos, tag:"abnormal", ...meta});
-  b.update(col("slots").doc(a.pos), {sn:o.sn, flag:o.flag||""});
-  b.update(col("slots").doc(o.pos), {sn:a.sn, flag:a.flag||""});
+  const aSn = (d.sw_a||"").trim() || a.sn, bSn = (d.sw_b||"").trim() || o.sn;
+  b.set(col("changes").doc(), {date:d.date, pos:a.pos, result:"Pass", reason:`${r}，跟${o.pos}交換`, sn:aSn, new_sn:bSn, swap:o.pos, tag:"swapped", ...meta});
+  b.set(col("changes").doc(), {date:d.date, pos:o.pos, result:"NG", reason:`${r}，跟${a.pos}交換`, sn:bSn, new_sn:aSn, swap:a.pos, tag:"abnormal", ...meta});
+  b.update(col("slots").doc(a.pos), {sn:bSn, flag:o.flag||""});
+  b.update(col("slots").doc(o.pos), {sn:aSn, flag:a.flag||""});
   await b.commit(); return `已交換 ${a.pos} ⇄ ${o.pos}`;
 }
 
