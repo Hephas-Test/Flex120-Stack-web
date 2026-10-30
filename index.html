@@ -616,7 +616,15 @@ function exportXlsx(){
   for (let n=1;n<=10;n++) m.push([n, ...[1,2,3,4,5].map(s=>(slot(`${s}-${n}`)||{}).sn||"")]);
   const ws1 = XLSX.utils.aoa_to_sheet(m);
   for (let n=1;n<=10;n++) for (let s=1;s<=5;s++){ const x=slot(`${s}-${n}`); if(x&&fill[x.flag]){ const a=XLSX.utils.encode_cell({r:n,c:s}); ws1[a].s={fill:{fgColor:{rgb:fill[x.flag]}}}; } }
-  ws1["!cols"]=[{wch:5},...Array(5).fill({wch:28})];
+  ws1["!cols"]=[{wch:5},...Array(5).fill({wch:28}),{wch:3},{wch:10},{wch:24}];
+  const legendFill = {"":"FFFFFF", ...fill};
+  XLSX.utils.sheet_add_aoa(ws1, [["顏色說明"]], {origin:{r:0, c:7}});
+  Object.entries(FLAG).forEach(([k,v], i) => {
+    const r = i + 1;
+    XLSX.utils.sheet_add_aoa(ws1, [["", v]], {origin:{r, c:7}});
+    const sw = XLSX.utils.encode_cell({r, c:7});
+    ws1[sw].s = {fill:{fgColor:{rgb:legendFill[k]||"FFFFFF"}}, border:{top:{style:"thin",color:{rgb:"CCCCCC"}},bottom:{style:"thin",color:{rgb:"CCCCCC"}},left:{style:"thin",color:{rgb:"CCCCCC"}},right:{style:"thin",color:{rgb:"CCCCCC"}}}};
+  });
   const ch = [...S.changes].sort((a,b)=>-byDateDesc(a,b));
   const ws2 = XLSX.utils.aoa_to_sheet([["時間","編號","該顆電堆狀況 NG/Pass","異常原因","原S/N","更換後新S/N","交換位置","標記","記錄人"],
     ...ch.map(c=>[c.date,c.pos,c.result,c.reason,c.sn,c.new_sn,c.swap,TAG[c.tag]||"",c.by])]);
