@@ -246,7 +246,7 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
 <script src="config.js"></script>
 <script src="seed.js"></script>
 <script>
-const FLAG = {"": "正常", abnormal: "異常問題中", highv: "服役中但電壓偏高", rupture: "膜破"};
+const FLAG = {"": "正常", abnormal: "電壓過高 無法順利拉載", highv: "服役中但電壓偏高", rupture: "膜破"};
 const isRupture = s => /膜破/.test(String(s||""));
 const TAG = {"": "", removed: "已換下不使用", highv: "服役中電壓偏高", swapped: "交換後 PASS", abnormal: "有異常但未更換"};
 const $ = id => document.getElementById(id);
