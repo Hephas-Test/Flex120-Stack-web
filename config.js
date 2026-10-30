@@ -7,3 +7,6 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "711608577689",
   appId: "1:711608577689:web:1589c9d84ace2e52c91208"
 };
+
+// 填入目前的部門密碼就會自動登入、不再顯示登入畫面；留空字串則維持原本要手動輸入密碼的畫面。
+window.SPACE_PASSWORD = "hephas28779867";

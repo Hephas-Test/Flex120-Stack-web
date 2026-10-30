@@ -281,7 +281,7 @@ const PAGES = [
 
 function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast"+(err?" err":""); t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true, err?5000:2600); }
 
-let fs, root, S = {slots:[], changes:[], events:[], usage:[]}, unsubs = [];
+let fs, root, S = {slots:[], changes:[], events:[], usage:[]}, unsubs = [], AUTO_LOGIN = false;
 const col = n => root.collection(n);
 
 // ---------- 啟動 / 登入 ----------
@@ -293,7 +293,14 @@ function start(){
   try { firebase.initializeApp(window.FIREBASE_CONFIG); fs = firebase.firestore(); }
   catch(e){ $("gate").hidden=false; $("gate").innerHTML = `<div class="gate"><div class="art"><h1>還沒設定 Firebase</h1><p>請依「設定說明」步驟 3，把 Firebase 設定貼到 config.js。</p></div><div class="form"></div></div>`; return; }
   ls.del("pw");
-  gate();
+  const autoPw = (window.SPACE_PASSWORD || "").trim();
+  if (autoPw){
+    AUTO_LOGIN = true;
+    document.querySelectorAll("[data-act=logout]").forEach(b=>b.hidden=true);
+    connect(autoPw);
+  } else {
+    gate();
+  }
 }
 
 function gate(msg){
@@ -319,7 +326,8 @@ function gate(msg){
   $("pwf").onsubmit = e => { e.preventDefault(); const b=e.target.querySelector("button"); b.disabled=true; b.textContent="連線中…"; connect($("pwi").value.trim()); };
 }
 
-function logout(){ unsubs.forEach(u=>u()); unsubs=[]; S={slots:[],changes:[],events:[],usage:[]}; draft=null; selPos=null; gate(); }
+function logout(){ unsubs.forEach(u=>u()); unsubs=[]; S={slots:[],changes:[],events:[],usage:[]}; draft=null; selPos=null;
+  if (AUTO_LOGIN) connect(window.SPACE_PASSWORD.trim()); else gate(); }
 
 function connect(pw){
   if (!/^[A-Za-z0-9_-]+$/.test(pw)) return gate("密碼只能是英文、數字、- 或 _");
@@ -598,8 +606,8 @@ function renderTools(){
   <section class="panel noprint"><h2>匯出 Excel</h2>
     <p class="muted" style="margin-top:0">配置、更換交換紀錄、異常紀錄、使用紀錄四張表，顏色跟原本的 Excel 一樣。</p>
     <button class="btn" data-act="export">下載 Excel</button>
-    <h2 style="margin-top:24px">登出</h2><p class="muted" style="margin-top:0">共用的電腦或手機用完請登出。</p>
-    <button class="btn line" data-act="logout">登出</button></section>
+    ${AUTO_LOGIN ? "" : `<h2 style="margin-top:24px">登出</h2><p class="muted" style="margin-top:0">共用的電腦或手機用完請登出。</p>
+    <button class="btn line" data-act="logout">登出</button>`}</section>
   </div>`;
   $app.querySelectorAll("[data-act=export]").forEach(b=>b.onclick=exportXlsx);
   $app.querySelectorAll("[data-act=logout]").forEach(b=>b.onclick=logout);
