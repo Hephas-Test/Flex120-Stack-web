@@ -229,7 +229,6 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
     <nav id="sidenav"></nav>
     <div class="foot">
       <button class="sbtn" data-act="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>匯出 Excel</button>
-      <button class="sbtn" data-act="logout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg>登出</button>
       <div class="meta" id="sync">已連線</div>
     </div>
   </aside>
@@ -281,58 +280,31 @@ const PAGES = [
 
 function toast(msg, err){ const t=$("toast"); t.textContent=msg; t.className="toast"+(err?" err":""); t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>t.hidden=true, err?5000:2600); }
 
-let fs, root, S = {slots:[], changes:[], events:[], usage:[]}, unsubs = [], AUTO_LOGIN = false;
+const ROOM_ID = "hephas28779867"; // 固定的資料庫路徑識別碼（原本的部門密碼），不再需要輸入
+let fs, root, S = {slots:[], changes:[], events:[], usage:[]}, unsubs = [];
 const col = n => root.collection(n);
 
-// ---------- 啟動 / 登入 ----------
+// ---------- 啟動 ----------
 function start(){
   $("sidenav").innerHTML = PAGES.map(([k,n])=>`<a href="#${k}" data-p="${k}">${icon(k)}${n}</a>`).join("");
   $("tabbar").innerHTML = PAGES.map(([k,n])=>`<a href="#${k}" data-p="${k}">${icon(k)}${n==="QR 與匯出"?"QR／匯出":n}</a>`).join("");
   document.querySelectorAll("[data-act=export]").forEach(b=>b.onclick=exportXlsx);
-  document.querySelectorAll("[data-act=logout]").forEach(b=>b.onclick=logout);
   try { firebase.initializeApp(window.FIREBASE_CONFIG); fs = firebase.firestore(); }
-  catch(e){ $("gate").hidden=false; $("gate").innerHTML = `<div class="gate"><div class="art"><h1>還沒設定 Firebase</h1><p>請依「設定說明」步驟 3，把 Firebase 設定貼到 config.js。</p></div><div class="form"></div></div>`; return; }
-  ls.del("pw");
-  const autoPw = (window.SPACE_PASSWORD || "").trim();
-  if (autoPw){
-    AUTO_LOGIN = true;
-    document.querySelectorAll("[data-act=logout]").forEach(b=>b.hidden=true);
-    connect(autoPw);
-  } else {
-    gate();
-  }
+  catch(e){ showError("還沒設定 Firebase", "請依「設定說明」步驟 3，把 Firebase 設定貼到 config.js。"); return; }
+  connect();
 }
 
-function gate(msg){
+function showError(title, msg){
   $("shell").hidden = true; $("gate").hidden = false;
-  $("gate").innerHTML = `<div class="gate">
-  <div class="art">
+  $("gate").innerHTML = `<div class="gate"><div class="art">
     <div class="brand"><svg width="38" height="38" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#1d3a55"/><g fill="#59c3cc"><rect x="7" y="7" width="4" height="18" rx="1"/><rect x="14" y="7" width="4" height="18" rx="1"/><rect x="21" y="7" width="4" height="18" rx="1"/></g></svg><div><b>Flex120</b><span>電堆履歷 · 製造處測試部</span></div></div>
-    <div><h1>每一顆電堆的位置、異常與更換，都在這裡。</h1>
-    <p>現場掃 QR 就能記錄使用狀況、異常、更換與交換，配置總表會自動更新。</p></div>
-    <div class="mini" aria-hidden="true">${Array.from({length:50},(_,i)=>`<i class="${[16,21,26,31,36,41,46].includes(i)?"y":[2,6,10].includes(i)?"o":""}"></i>`).join("")}</div>
-  </div>
-  <div class="form"><div>
-    <h2>輸入部門密碼</h2>
-    <form id="pwf">
-      <label for="pwi">部門密碼<input id="pwi" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" required></label>
-      <p class="muted" style="margin:-6px 0 0">提示：小寫公司名＋統編</p>
-      ${msg?`<p class="ng" style="margin:0" role="alert">${esc(msg)}</p>`:""}
-      <button class="btn">進入</button>
-    </form>
-    <p class="muted" style="margin:0">每次打開網頁都需要輸入一次。</p>
-  </div></div></div>`;
-  $("pwi").focus();
-  $("pwf").onsubmit = e => { e.preventDefault(); const b=e.target.querySelector("button"); b.disabled=true; b.textContent="連線中…"; connect($("pwi").value.trim()); };
+    <div><h1>${esc(title)}</h1><p>${esc(msg)}</p></div></div>
+  <div class="form"></div></div>`;
 }
 
-function logout(){ unsubs.forEach(u=>u()); unsubs=[]; S={slots:[],changes:[],events:[],usage:[]}; draft=null; selPos=null;
-  if (AUTO_LOGIN) connect(window.SPACE_PASSWORD.trim()); else gate(); }
-
-function connect(pw){
-  if (!/^[A-Za-z0-9_-]+$/.test(pw)) return gate("密碼只能是英文、數字、- 或 _");
+function connect(){
   unsubs.forEach(u=>u()); unsubs=[];
-  root = fs.collection("space").doc(pw);
+  root = fs.collection("space").doc(ROOM_ID);
   let first = true; const loaded = {slots:false,changes:false,events:false,usage:false};
   for (const name of Object.keys(loaded)){
     unsubs.push(col(name).onSnapshot(snap => {
@@ -342,8 +314,7 @@ function connect(pw){
       if (!first){ $("sync").textContent = "已同步 " + new Date().toLocaleTimeString("zh-TW",{hour12:false,hour:"2-digit",minute:"2-digit"}); render(); }
     }, err => {
       unsubs.forEach(u=>u()); unsubs=[];
-      if (err.code === "permission-denied") gate("密碼錯誤，請再試一次");
-      else gate("連不上資料庫：" + err.message);
+      showError("連不上資料庫", err.message);
     }));
   }
 }
@@ -605,12 +576,9 @@ function renderTools(){
     <p class="muted noprint" style="margin:10px 2px 0">按 Ctrl+P 列印這張 QR，貼在機台旁。</p></section>
   <section class="panel noprint"><h2>匯出 Excel</h2>
     <p class="muted" style="margin-top:0">配置、更換交換紀錄、異常紀錄、使用紀錄四張表，顏色跟原本的 Excel 一樣。</p>
-    <button class="btn" data-act="export">下載 Excel</button>
-    ${AUTO_LOGIN ? "" : `<h2 style="margin-top:24px">登出</h2><p class="muted" style="margin-top:0">共用的電腦或手機用完請登出。</p>
-    <button class="btn line" data-act="logout">登出</button>`}</section>
+    <button class="btn" data-act="export">下載 Excel</button></section>
   </div>`;
   $app.querySelectorAll("[data-act=export]").forEach(b=>b.onclick=exportXlsx);
-  $app.querySelectorAll("[data-act=logout]").forEach(b=>b.onclick=logout);
   try { new QRCode($("qr"), {text:url, width:240, height:240, correctLevel:QRCode.CorrectLevel.M}); } catch { $("qr").textContent = "QR 產生失敗，請重新整理"; }
 }
 
