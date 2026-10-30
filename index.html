@@ -21,6 +21,7 @@
   --dorg:#e57a33; --dorg-fg:#ffffff;
   --gray:#aab3b6; --gray-fg:#1f2629;
   --rup:#ffd2cd; --rup-fg:#7a1710;
+  --oth:#e4d7fb; --oth-fg:#4a2a7a;
   --ng:#c2281f;
   --sans:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
   --latin:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;
@@ -37,6 +38,7 @@
   --dorg:#a4511a; --dorg-fg:#ffffff;
   --gray:#3b4448; --gray-fg:#cfd6d9;
   --rup:#5c1f1b; --rup-fg:#ffb3ab;
+  --oth:#3a2a5c; --oth-fg:#d9c6ff;
   --ng:#ff6b61; color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -79,6 +81,7 @@ main{padding:16px 32px 48px;display:grid;gap:18px;max-width:1180px;width:100%}
 .f-abnormal,.t-abnormal{background:var(--yel);color:var(--yel-fg)}
 .f-highv,.t-highv{background:var(--dorg);color:var(--dorg-fg)}
 .f-rupture,.t-rupture{background:var(--rup);color:var(--rup-fg)}
+.f-other,.t-other{background:var(--oth);color:var(--oth-fg)}
 .t-swapped{background:var(--org);color:var(--org-fg)}
 .t-removed{background:var(--gray);color:var(--gray-fg)}
 
@@ -246,7 +249,7 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
 <script src="config.js"></script>
 <script src="seed.js"></script>
 <script>
-const FLAG = {"": "正常", abnormal: "電壓過高 無法順利拉載", highv: "服役中但電壓偏高", rupture: "膜破"};
+const FLAG = {"": "正常", abnormal: "電壓過高 無法順利拉載", highv: "服役中但電壓偏高", rupture: "膜破", other: "其他異常原因"};
 const isRupture = s => /膜破/.test(String(s||""));
 const TAG = {"": "", removed: "已換下不使用", highv: "服役中電壓偏高", swapped: "交換後 PASS", abnormal: "有異常但未更換"};
 const $ = id => document.getElementById(id);
