@@ -250,7 +250,6 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
 <script src="seed.js"></script>
 <script>
 const FLAG = {"": "正常", abnormal: "電壓過高 無法順利拉載", highv: "服役中但電壓偏高", rupture: "膜破", other: "其他異常原因"};
-const isRupture = s => /膜破/.test(String(s||""));
 const TAG = {"": "", removed: "已換下不使用", highv: "服役中電壓偏高", swapped: "交換後 PASS", abnormal: "有異常但未更換"};
 const $ = id => document.getElementById(id);
 const $app = $("app");
@@ -478,11 +477,9 @@ async function submit(d){
     await b.commit(); return `已記錄 ${d.date} ${d.t_from}～${d.t_to} 使用紀錄`;
   }
   if (d.kind === "event"){
-    const descr = d.descr.trim();
-    const flag = d.flag !== "keep" ? d.flag : (isRupture(descr) ? "rupture" : "keep");
-    b.set(col("events").doc(), {date:d.date, pos:d.pos, descr, ...meta});
-    if (flag !== "keep") b.update(col("slots").doc(d.pos), {flag});
-    await b.commit(); return `已記錄 ${d.pos} 異常${flag==="rupture"&&d.flag==="keep"?"（偵測到膜破，已自動標記為紅色）":""}`;
+    b.set(col("events").doc(), {date:d.date, pos:d.pos, descr:d.descr.trim(), ...meta});
+    if (d.flag !== "keep") b.update(col("slots").doc(d.pos), {flag:d.flag});
+    await b.commit(); return `已記錄 ${d.pos} 異常`;
   }
   if (d.kind === "replace"){
     const nsn = d.new_sn.trim().toUpperCase(), r = d.reason_r.trim(), osn = (d.old_sn||"").trim() || a.sn;
