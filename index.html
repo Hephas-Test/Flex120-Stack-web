@@ -611,33 +611,41 @@ function exportXlsx(){
   const fill = {removed:"A6A6A6", highv:"ED7D31", swapped:"FFC000", abnormal:"FFFF00", rupture:"FF0000", other:"7030A0"};
   const head = {font:{bold:true}, alignment:{horizontal:"center"}};
   const style = (ws, r, ncol, tag) => { if(!fill[tag]) return; for(let c=0;c<ncol;c++){ const a=XLSX.utils.encode_cell({r,c}); if(ws[a]) ws[a].s={fill:{fgColor:{rgb:fill[tag]}}}; } };
+  const THIN = {style:"thin", color:{rgb:"BFBFBF"}};
+  const BORDER = {top:THIN, bottom:THIN, left:THIN, right:THIN};
+  const addBorders = (ws, r0, c0, r1, c1) => { for (let r=r0;r<=r1;r++) for (let c=c0;c<=c1;c++){ const a=XLSX.utils.encode_cell({r,c}); if(!ws[a]) ws[a]={t:"s", v:""}; ws[a].s={...(ws[a].s||{}), border:BORDER}; } };
   const wb = XLSX.utils.book_new();
   const m = [["No.","String1","String2","String3","String4","String5"]];
   for (let n=1;n<=10;n++) m.push([n, ...[1,2,3,4,5].map(s=>(slot(`${s}-${n}`)||{}).sn||"")]);
   const ws1 = XLSX.utils.aoa_to_sheet(m);
   for (let n=1;n<=10;n++) for (let s=1;s<=5;s++){ const x=slot(`${s}-${n}`); if(x&&fill[x.flag]){ const a=XLSX.utils.encode_cell({r:n,c:s}); ws1[a].s={fill:{fgColor:{rgb:fill[x.flag]}}}; } }
   ws1["!cols"]=[{wch:5},...Array(5).fill({wch:28}),{wch:3},{wch:10},{wch:24}];
+  addBorders(ws1, 0, 0, 10, 5);
   const legendFill = {"":"FFFFFF", ...fill};
   XLSX.utils.sheet_add_aoa(ws1, [["顏色說明"]], {origin:{r:0, c:7}});
   Object.entries(FLAG).forEach(([k,v], i) => {
     const r = i + 1;
     XLSX.utils.sheet_add_aoa(ws1, [["", v]], {origin:{r, c:7}});
     const sw = XLSX.utils.encode_cell({r, c:7});
-    ws1[sw].s = {fill:{fgColor:{rgb:legendFill[k]||"FFFFFF"}}, border:{top:{style:"thin",color:{rgb:"CCCCCC"}},bottom:{style:"thin",color:{rgb:"CCCCCC"}},left:{style:"thin",color:{rgb:"CCCCCC"}},right:{style:"thin",color:{rgb:"CCCCCC"}}}};
+    ws1[sw].s = {fill:{fgColor:{rgb:legendFill[k]||"FFFFFF"}}, border:BORDER};
   });
+  addBorders(ws1, 0, 7, Object.keys(FLAG).length, 8);
   const ch = [...S.changes].sort((a,b)=>-byDateDesc(a,b));
   const ws2 = XLSX.utils.aoa_to_sheet([["時間","編號","該顆電堆狀況 NG/Pass","異常原因","原S/N","更換後新S/N","交換位置","標記","記錄人"],
     ...ch.map(c=>[c.date,c.pos,c.result,c.reason,c.sn,c.new_sn,c.swap,TAG[c.tag]||"",c.by])]);
   ch.forEach((c,i)=>style(ws2,i+1,9,c.tag));
   ws2["!cols"]=[12,7,10,60,28,28,9,14,10].map(wch=>({wch}));
+  addBorders(ws2, 0, 0, ch.length, 8);
   const ev = [...S.events].sort((a,b)=>-byDateDesc(a,b));
   const ws3 = XLSX.utils.aoa_to_sheet([["時間","電堆","異常紀錄描述","記錄人"], ...ev.map(e=>[e.date,e.pos,e.descr,e.by])]);
   ws3["!cols"]=[12,18,90,10].map(wch=>({wch}));
+  addBorders(ws3, 0, 0, ev.length, 3);
   const us = [...S.usage].sort((a,b)=>(a.date||"").localeCompare(b.date||"")||(a.from||"").localeCompare(b.from||""));
   const ws4 = XLSX.utils.aoa_to_sheet([["日期","使用時段","設定產氫率(%)","有無異常","異常問題描述","記錄人"], ...us.map(u=>[u.date,`${u.from}～${u.to}`,u.rate,u.abn,u.descr,u.by])]);
   us.forEach((u,i)=>{ if(u.abn==="有") style(ws4,i+1,6,"abnormal"); });
   ws4["!cols"]=[12,14,14,10,60,10].map(wch=>({wch}));
-  for (const ws of [ws1,ws2,ws3,ws4]){ const r=XLSX.utils.decode_range(ws["!ref"]); for(let c=r.s.c;c<=r.e.c;c++){ const a=XLSX.utils.encode_cell({r:0,c}); if(ws[a]) ws[a].s=head; } }
+  addBorders(ws4, 0, 0, us.length, 5);
+  for (const ws of [ws1,ws2,ws3,ws4]){ const r=XLSX.utils.decode_range(ws["!ref"]); for(let c=r.s.c;c<=r.e.c;c++){ const a=XLSX.utils.encode_cell({r:0,c}); if(ws[a]) ws[a].s={...(ws[a].s||{}), ...head}; } }
   XLSX.utils.book_append_sheet(wb, ws1, "配置");
   XLSX.utils.book_append_sheet(wb, ws2, "更換交換紀錄");
   XLSX.utils.book_append_sheet(wb, ws3, "異常紀錄");
