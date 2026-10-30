@@ -20,6 +20,7 @@
   --org:#ffc54d; --org-fg:#4f3200;
   --dorg:#e57a33; --dorg-fg:#ffffff;
   --gray:#aab3b6; --gray-fg:#1f2629;
+  --rup:#ffd2cd; --rup-fg:#7a1710;
   --ng:#c2281f;
   --sans:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;
   --latin:"IBM Plex Sans","Noto Sans TC",system-ui,sans-serif;
@@ -35,6 +36,7 @@
   --org:#6a4710; --org-fg:#ffd893;
   --dorg:#a4511a; --dorg-fg:#ffffff;
   --gray:#3b4448; --gray-fg:#cfd6d9;
+  --rup:#5c1f1b; --rup-fg:#ffb3ab;
   --ng:#ff6b61; color-scheme:dark}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -76,6 +78,7 @@ main{padding:16px 32px 48px;display:grid;gap:18px;max-width:1180px;width:100%}
 .f-,.t-{background:var(--ok);color:var(--ok-fg)}
 .f-abnormal,.t-abnormal{background:var(--yel);color:var(--yel-fg)}
 .f-highv,.t-highv{background:var(--dorg);color:var(--dorg-fg)}
+.f-rupture,.t-rupture{background:var(--rup);color:var(--rup-fg)}
 .t-swapped{background:var(--org);color:var(--org-fg)}
 .t-removed{background:var(--gray);color:var(--gray-fg)}
 
@@ -162,7 +165,7 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
 .gate .art p{color:var(--ink-muted);max-width:30em;margin:12px 0 0}
 .gate .art .mini{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;max-width:300px}
 .gate .art .mini i{height:16px;border-radius:3px;background:var(--ink-2)}
-.gate .art .mini i.y{background:#ffe76a}.gate .art .mini i.o{background:#e57a33}
+.gate .art .mini i.y{background:#ffe76a}.gate .art .mini i.o{background:#e57a33}.gate .art .mini i.r{background:#e14a3f}
 .gate .form{display:flex;align-items:center;justify-content:center;padding:32px 20px}
 .gate .form>div{width:100%;max-width:360px;display:grid;gap:18px}
 .gate .form h2{margin:0;font-size:22px}
@@ -243,7 +246,8 @@ tr.hl td{background:color-mix(in srgb,var(--yel) 30%,transparent)}
 <script src="config.js"></script>
 <script src="seed.js"></script>
 <script>
-const FLAG = {"": "正常", abnormal: "異常問題中", highv: "服役中但電壓偏高"};
+const FLAG = {"": "正常", abnormal: "異常問題中", highv: "服役中但電壓偏高", rupture: "膜破"};
+const isRupture = s => /膜破/.test(String(s||""));
 const TAG = {"": "", removed: "已換下不使用", highv: "服役中電壓偏高", swapped: "交換後 PASS", abnormal: "有異常但未更換"};
 const $ = id => document.getElementById(id);
 const $app = $("app");
@@ -471,9 +475,11 @@ async function submit(d){
     await b.commit(); return `已記錄 ${d.date} ${d.t_from}～${d.t_to} 使用紀錄`;
   }
   if (d.kind === "event"){
-    b.set(col("events").doc(), {date:d.date, pos:d.pos, descr:d.descr.trim(), ...meta});
-    if (d.flag !== "keep") b.update(col("slots").doc(d.pos), {flag:d.flag});
-    await b.commit(); return `已記錄 ${d.pos} 異常`;
+    const descr = d.descr.trim();
+    const flag = d.flag !== "keep" ? d.flag : (isRupture(descr) ? "rupture" : "keep");
+    b.set(col("events").doc(), {date:d.date, pos:d.pos, descr, ...meta});
+    if (flag !== "keep") b.update(col("slots").doc(d.pos), {flag});
+    await b.commit(); return `已記錄 ${d.pos} 異常${flag==="rupture"&&d.flag==="keep"?"（偵測到膜破，已自動標記為紅色）":""}`;
   }
   if (d.kind === "replace"){
     const nsn = d.new_sn.trim().toUpperCase(), r = d.reason_r.trim(), osn = (d.old_sn||"").trim() || a.sn;
